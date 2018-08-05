@@ -1,6 +1,32 @@
 <?php
-require __DIR__.'/../libs/youtube-dl/youtube-dl.php';
 require __DIR__.'/../data/config.php';
+require __DIR__.'/../libs/autoload.php';
+
+use YoutubeDl\YoutubeDl;
+use YoutubeDl\Exception\CopyrightException;
+use YoutubeDl\Exception\NotFoundException;
+use YoutubeDl\Exception\PrivateVideoException;
+
+function filename($dir)
+{
+	$scan = scandir($dir);
+	$file = null;
+	foreach ($scan as $value) {
+		if($value !== "." || $value !== ".."){
+			$file = $value;
+		}
+	}
+	return $file;
+}
+
+function isValidURL($url)
+{
+	if (preg_match('%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\.be/)([^"&?/ ]{11})%i', $url)) {
+		return true;
+	}else{
+		return false;
+	}
+}
 
 if(isset($_POST['download'])){
 	if($_POST['format'] == 1){
@@ -12,21 +38,51 @@ if(isset($_POST['download'])){
 			header('refresh:5;url=index.php');
 			exit;
 		}
-		try {
-	    	$video = youtubedl($ytdl_path, $_POST['url'], __DIR__.'/../data/userfiles/'.$dir);
-	    	$download = [
-		    	"status" => "success",
-		    	"file" => './data/userfiles/'.$dir.'/'.filename(__DIR__."/../data/userfiles/".$dir."/"),
-		    	"name" => $video['title'],
-		    	"img" => $video['thumbnail']
-		    ];
-		} catch (Exception $e) {
-		    $download = [
+		if(isValidURL($_POST['url']) !== true){
+			$download = [
 		    	"status" => "failed",
-		    	"error" => "Imposible de télécharger la bande son !"
+		    	"error" => "URL non valide"
 		    ];
+		}else{
+			$dl = new YoutubeDl([
+				'extract-audio' => true,
+				'audio-format' => 'mp3',
+				'audio-quality' => 0,
+				'output' => '%(title)s.%(ext)s',
+				'restrict-filenames' => true
+			]);
+			$dl->setDownloadPath(__DIR__.'/../data/userfiles/'.$dir);
+			try {
+				$video = $dl->download($_POST['url']);
+				$download = [
+					"status" => "success",
+					"file" => './data/userfiles/'.$dir.'/'.filename(__DIR__."/../data/userfiles/".$dir."/"),
+					"name" => $video->getTitle(),
+					"img" => "http://img.youtube.com/vi/".$video->getId()."/mqdefault.jpg"
+				];
+			} catch (NotFoundException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Vidéo non trouvé"
+				];
+			} catch (PrivateVideoException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "La vidéo est privé"
+				];
+			} catch (CopyrightException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Le compte associé avec cette vidéo a été suspendu"
+				];
+			} catch (\Exception $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Erreur inconnue"
+				];
+			}
 		}
-	}elseif($_POST['format'] == 2){
+	}else{
 		$dir = md5(time());
 		try {
 			mkdir(__DIR__.'/../data/userfiles/'.$dir);
@@ -35,24 +91,47 @@ if(isset($_POST['download'])){
 			header('refresh:5;url=index.php');
 			exit;
 		}
-		try {
-	    	$video = youtubedlVideo($ytdl_path, $_POST['url'], __DIR__.'/../data/userfiles/'.$dir);
-	    	$download = [
-		    	"status" => "success",
-		    	"file" => './data/userfiles/'.$dir.'/'.filename(__DIR__."/../data/userfiles/".$dir."/"),
-		    	"name" => $video['title'],
-		    	"img" => $video['thumbnail']
-		    ];
-		} catch (Exception $e) {
-		    $download = [
+		if(isValidURL($_POST['url']) !== true){
+			$download = [
 		    	"status" => "failed",
-		    	"error" => "Imposible de télécharger la vidéo !"
+		    	"error" => "URL non valide"
 		    ];
+		}else{
+			$dl = new YoutubeDl([
+				'continue' => true,
+				'format' => 'bestvideo+bestaudio',
+				'restrict-filenames' => true
+			]);
+			$dl->setDownloadPath(__DIR__.'/../data/userfiles/'.$dir);
+			try {
+				$video = $dl->download($_POST['url']);
+				$download = [
+					"status" => "success",
+					"file" => './data/userfiles/'.$dir.'/'.filename(__DIR__."/../data/userfiles/".$dir."/"),
+					"name" => $video->getTitle(),
+					"img" => "http://img.youtube.com/vi/".$video->getId()."/mqdefault.jpg"
+				];
+			} catch (NotFoundException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Vidéo non trouvé"
+				];
+			} catch (PrivateVideoException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "La vidéo est privé"
+				];
+			} catch (CopyrightException $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Le compte associé avec cette vidéo a été suspendu"
+				];
+			} catch (\Exception $e) {
+				$download = [
+					"status" => "failed",
+					"error" => "Erreur inconnue"
+				];
+			}
 		}
-	}else{
-		$download = [
-			"status" => "failed",
-			"error" => "Le format n'a pas été précisé"
-		];
 	}
 }

@@ -31,7 +31,7 @@ function youtubedl($ytdl_path="/usr/local/bin/youtube-dl", $url, $file_path=__DI
 	if(isValidURL($url) !== true){
 		throw new Exception("URL non valide !");
 	}else{
-		$file = new Process('"'.$ytdl_path.'" -o "'.$file_path.'/%(title)s.mp3" '.$url.' --extract-audio --audio-format mp3 -f "bestaudio"');
+		$file = new Process('"'.$ytdl_path.'" -o "'.$file_path.'/%(title)s.mp3" '.$url.' --extract-audio --audio-format mp3 -f "bestaudio" --proxy ""');
 		$infos = new Process('"'.$ytdl_path.'" '.$url.' --dump-json');
 
 		try {
